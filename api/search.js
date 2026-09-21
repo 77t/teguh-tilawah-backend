@@ -58,6 +58,19 @@ module.exports = async (req, res) => {
     }
     const rawItems = await apifyRes.json();
 
+    // MODE DIAGNOSTIK: buka /api/search?q=peci&debug=1 untuk melihat data
+    // MENTAH persis seperti yang dikirim Apify, tanpa dipetakan/disaring dulu.
+    // Pakai ini untuk mencocokkan nama field asli (title/image/price/url)
+    // yang dipakai actor Anda, lalu beri tahu saya hasilnya.
+    if (req.query.debug) {
+      res.status(200).json({
+        debug: true,
+        totalRawItems: Array.isArray(rawItems) ? rawItems.length : 0,
+        sample: Array.isArray(rawItems) ? rawItems.slice(0, 2) : rawItems,
+      });
+      return;
+    }
+
     // Petakan field mentah dari Apify ke bentuk yang seragam. Nama field di
     // sini (title/image/price/url) adalah TEBAKAN UMUM -- sesuaikan dengan
     // field asli yang dikembalikan actor Apify Shopee pilihan Anda (lihat
@@ -101,3 +114,4 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: String(err.message || err) });
   }
 };
+
