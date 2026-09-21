@@ -100,11 +100,27 @@ module.exports = async (req, res) => {
       originUrl: it.url || it.productUrl || it.link || it.itemUrl || null,
     })).filter((it) => it.originUrl);
 
+    // ID Affiliate Shopee Anda (dari Pengaturan Akun: 11359441225, username
+    // teguhusaha) -- dipakai sebagai jaring pengaman kalau Shopee Open API
+    // (App ID/Secret) tidak tersedia, supaya link produk TETAP membawa kode
+    // afiliasi Anda, bukan link polos tanpa pelacakan sama sekali.
+    const SHOPEE_AFFILIATE_ID = '11359441225';
+    function withAffiliateFallback(url) {
+      try {
+        const u = new URL(url);
+        u.searchParams.set('mmp_pid', 'an_' + SHOPEE_AFFILIATE_ID);
+        return u.toString();
+      } catch (e) {
+        return url; // URL aneh/tak valid -- kembalikan apa adanya daripada gagal total
+      }
+    }
+
     // Coba ubah tiap link jadi link afiliasi. Kalau App ID/Secret belum ada
     // atau salah satu gagal, tetap kirim link aslinya (jangan sampai error
-    // satu produk menggagalkan seluruh pencarian).
+    // satu produk menggagalkan seluruh pencarian) -- TAPI tetap disisipi ID
+    // Affiliate Anda sebagai jaring pengaman, bukan link polos tanpa jejak.
     const results = await Promise.all(items.map(async (it) => {
-      let affiliateLink = it.originUrl;
+      let affiliateLink = withAffiliateFallback(it.originUrl);
       let affiliateReady = false;
       try {
         const short = await generateShortLink(it.originUrl, ['tilawah-app']);
