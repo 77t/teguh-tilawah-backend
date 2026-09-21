@@ -5147,7 +5147,12 @@
       .catch(function(err){
         console.warn('Marketplace: /api/search tidak tersedia, alihkan ke pencarian Shopee langsung.', err);
         statusEl.style.display = 'none';
-        openLink(shopeeSearchUrl(q));
+        // Pindah pakai location.href (bukan window.open) di jalur cadangan ini --
+        // karena ini terjadi SETELAH menunggu jawaban fetch yang gagal (async),
+        // browser tak lagi menganggapnya aksi langsung dari ketukan pengguna,
+        // sehingga window.open() di sini sering diblokir sebagai pop-up.
+        // location.href tidak kena aturan itu karena bukan membuka tab baru.
+        location.href = shopeeSearchUrl(q);
       });
   }
 
