@@ -33,6 +33,11 @@ const cache = new Map(); // key: keyword lowercase -> { items, at }
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 jam
 const MAX_CACHE_ITEMS = 100;
 
+function formatRupiah(n){
+  if (n === null || n === undefined || isNaN(n)) return null;
+  return 'Rp' + Math.round(n).toLocaleString('id-ID');
+}
+
 module.exports = async (req, res) => {
   const q = (req.query.q || '').toString().trim();
   if (!q) {
@@ -85,14 +90,13 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // Pemetaan field -- mencoba beberapa kemungkinan nama umum untuk actor
-    // ini (berdasar deskripsi resminya: title, price, primary image, rating,
-    // sold count). Kalau ternyata masih ada yang kosong, buka mode debug di
-    // atas untuk lihat nama field persisnya lalu kabari saya.
+    // Pemetaan field -- sudah dikonfirmasi PERSIS dari data mentah asli actor
+    // ini (lihat hasil /api/search?debug=1): name, image_url, price (angka
+    // mentah dalam Rupiah penuh, bukan sen), url.
     const items = (Array.isArray(rawItems) ? rawItems : []).slice(0, 8).map((it) => ({
-      title: it.title || it.name || it.productName || 'Produk Shopee',
-      image: it.image || it.primaryImage || it.imageUrl || it.thumbnail || (it.images && it.images[0]) || null,
-      price: it.price || it.priceText || it.priceRange || null,
+      title: it.name || it.title || it.productName || 'Produk Shopee',
+      image: it.image_url || it.image || it.primaryImage || it.imageUrl || it.thumbnail || (it.images && it.images[0]) || null,
+      price: formatRupiah(it.price),
       originUrl: it.url || it.productUrl || it.link || it.itemUrl || null,
     })).filter((it) => it.originUrl);
 
