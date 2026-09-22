@@ -1,7 +1,7 @@
 {
   "name": "Teguh Tilawah",
-  "short_name": "Tilawah",
-  "description": "Baca & dengar Al-Qur'an, hafalan, tafsir, hadits, dan ceramah — gratis oleh Teguh Digital",
+  "short_name": "Teguh Tilawah",
+  "description": "Baca & Dengar Al-Qur'an, hafalan, tafsir, hadits, dan ceramah - gratis oleh Teguh Digital",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0d3b2e",
