@@ -613,6 +613,20 @@
   }
   .mp-shelf-cta{font-size:11px;color:var(--gold-soft);font-weight:600;text-align:left;}
 
+  /* ============ KOMUNITAS ============ */
+  .komunitas-card{
+    margin:0 16px 16px;padding:28px 20px;border-radius:18px;text-align:center;
+    background:linear-gradient(160deg, var(--surface-2), var(--surface));
+    border:1px solid var(--border);
+  }
+  .kc-icon{font-size:38px;margin-bottom:10px;}
+  .kc-title{font-size:16px;font-weight:700;color:var(--gold-soft);margin-bottom:8px;}
+  .kc-sub{font-size:12.5px;color:var(--text-muted);line-height:1.7;margin-bottom:18px;}
+  .kc-btn{
+    display:inline-block;padding:12px 28px;border-radius:24px;background:var(--gold);
+    color:var(--bg);font-family:'Inter';font-weight:700;font-size:13.5px;text-decoration:none;
+  }
+
   /* ============ CERAMAH AUDIO PLAYER (MP3 + EQUALIZER) ============ */
   .cr-player{
     margin:0 16px 16px;border-radius:16px;background:linear-gradient(160deg, var(--surface-2), var(--surface));
@@ -644,6 +658,18 @@
   .cr-playlist-item .cpi-title{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cr-playlist-item .cpi-ustadz{font-size:10.5px;color:var(--text-muted);}
 </style>
+
+<!-- Jembatan pemanggil tombol install PWA ke layar HP -->
+<link rel="manifest" href="manifest.json">
+
+<!-- GoatCounter Analytics -- pemantau trafik gratis, tanpa perlu pengguna login.
+     Ganti YOUR-CODE dengan kode akun GoatCounter Anda sendiri (daftar gratis di
+     goatcounter.com), baru skrip ini aktif. Dibiarkan kosong dulu supaya tidak
+     memanggil domain yang belum tentu ada, sesuai catatan "jangan sampai merusak
+     yang sudah ada" -- isi sendiri setelah akun Anda siap. -->
+<!--
+<script data-goatcounter="https://YOUR-CODE.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+-->
 </head>
 <body>
 <div id="app">
@@ -732,6 +758,9 @@
 
 <!-- ============ MARKETPLACE TAB (Afiliasi) ============ -->
 <div class="tab-panel" id="tab-marketplace"></div>
+
+<!-- ============ KOMUNITAS TAB ============ -->
+<div class="tab-panel" id="tab-komunitas"></div>
 
 </div>
 <!-- ============ /tabContent ============ -->
@@ -900,6 +929,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4"></path><circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle></svg>
       <span>Belanja</span>
     </button>
+    <button data-tab="komunitas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M9 7a4 4 0 118 0 4 4 0 01-8 0z"></path><path d="M12 14a4 4 0 00-4 4v2h8v-2a4 4 0 00-4-4z"></path></svg>
+      <span>Komunitas</span>
+    </button>
   </nav>
 
 </div>
@@ -1025,6 +1058,7 @@
     if(name === 'ceramah' && window.CeramahApp) window.CeramahApp.init();
     if(name === 'hijaiyah' && window.HijaiyahApp) window.HijaiyahApp.init();
     if(name === 'marketplace' && window.MarketplaceApp) window.MarketplaceApp.init();
+    if(name === 'komunitas' && window.KomunitasApp) window.KomunitasApp.init();
   }
 
   function loadSettings(){
@@ -3067,7 +3101,7 @@
 
   // ---- Mesin rekam mikrofon + gelombang suara real-time (dipakai Hafalan & Studio Suara) ----
   window.Rekaman = (function(){
-    var stream=null, audioCtx=null, analyser=null, recorder=null, chunks=[], rafId=null, canvas=null, ctx2d=null, recording=false;
+    var stream=null, audioCtx=null, analyser=null, recorder=null, chunks=[], rafId=null, canvas=null, ctx2d=null, recording=false, musicGainNode=null;
 
     function cssVar(name, fallback){
       var v = getComputedStyle(document.documentElement).getPropertyValue(name);
@@ -3134,12 +3168,15 @@
         source.connect(highpass).connect(compressor).connect(recordDest);
 
         var micTracks = recordDest.stream;
+        musicGainNode = null;
         if(opts && opts.musicEl){
           var musicSource = audioCtx.createMediaElementSource(opts.musicEl);
-          var musicGain = audioCtx.createGain(); musicGain.gain.value = 0.4;
+          var musicGain = audioCtx.createGain();
+          musicGain.gain.value = (opts.musicVolume != null) ? opts.musicVolume : 0.4;
           musicSource.connect(musicGain);
           musicGain.connect(recordDest);
           musicGain.connect(audioCtx.destination);
+          musicGainNode = musicGain; // disimpan supaya volumenya bisa diubah live lewat aturVolumeMusik()
           opts.musicEl.currentTime = 0;
           opts.musicEl.play().catch(function(){});
         }
@@ -3171,6 +3208,10 @@
     }
 
     function sedangMerekam(){ return recording; }
+    function aturVolumeMusik(v01){
+      // v01: 0.0 - 1.0. Aman dipanggil kapan pun, termasuk sebelum musik aktif.
+      if(musicGainNode) musicGainNode.gain.value = v01;
+    }
 
     // Terjemahkan error getUserMedia jadi pesan yang bisa langsung ditindaklanjuti pengguna,
     // bukan cuma pesan teknis mentah dari browser.
@@ -3191,7 +3232,7 @@
       return 'Tidak bisa mengakses mikrofon (' + (name || (err && err.message) || 'sebab tidak diketahui') + '). Coba muat ulang halaman.';
     }
 
-    return { mulai: mulai, berhenti: berhenti, sedangMerekam: sedangMerekam, pesanError: pesanError };
+    return { mulai: mulai, berhenti: berhenti, sedangMerekam: sedangMerekam, pesanError: pesanError, aturVolumeMusik: aturVolumeMusik };
   })();
 
   // ---- Koleksi Saya: rekaman tersimpan di perangkat ini (IndexedDB) ----
@@ -4720,9 +4761,22 @@
   var kategori = 'pidato';
   var naskahText = '';
   var musicFile = null;
+  var musicPreset = null; // null | 'motivasi' | 'sinematik' -- musik bawaan dari Internet Archive
+  var musicVolume = 0.4; // 0.0 - 1.0
   var recordedBlob = null, recordedUrl = null;
   var elapsedTimer = null, elapsedSec = 0;
   var previewAudio = null;
+
+  var MUSIK_BAWAAN = {
+    motivasi: {
+      label: 'Musik Motivasi',
+      url: 'https://archive.org/download/soundcloud-503463051/Optimistic_-_No_Copyright_Motivational_and_Uplifting_Background_Music_For_Videos_Download_MP3-503463051.mp3'
+    },
+    sinematik: {
+      label: 'Musik Sinematik/Puisi',
+      url: 'https://archive.org/download/peaceful-tracks/009.mp3'
+    }
+  };
 
   var KATEGORI = [
     { key:'pidato', label:'Pidato & Motivasi', placeholder:'Assalamu\'alaikum. Hari ini saya ingin berbagi tentang...' },
@@ -4776,8 +4830,14 @@
     if(kategori !== 'nyanyi'){
       html += '<div class="picker-box">' +
         '<label>Musik latar (opsional)</label>' +
-        '<label class="rekam-file" for="musicInput" style="display:block;padding:10px;border:1px dashed var(--border);border-radius:10px;text-align:center;font-size:12.5px;color:var(--text-muted);cursor:pointer;"><span id="musicFileName">' + (musicFile ? musicFile.name : 'Pilih file musik dari perangkatmu…') + '</span></label>' +
+        '<div class="chip-row" style="margin-bottom:10px;">' +
+          '<div class="chip ' + (musicPreset==='motivasi'?'active':'') + '" data-preset="motivasi">🎵 Musik Motivasi</div>' +
+          '<div class="chip ' + (musicPreset==='sinematik'?'active':'') + '" data-preset="sinematik">🎬 Sinematik/Puisi</div>' +
+          '<div class="chip ' + (!musicPreset && !musicFile?'active':'') + '" data-preset="none">Tanpa musik</div>' +
+        '</div>' +
+        '<label class="rekam-file" for="musicInput" style="display:block;padding:10px;border:1px dashed var(--border);border-radius:10px;text-align:center;font-size:12.5px;color:var(--text-muted);cursor:pointer;"><span id="musicFileName">' + (musicFile ? musicFile.name : 'Atau unggah musikmu sendiri…') + '</span></label>' +
         '<input type="file" id="musicInput" accept="audio/*" style="display:none">' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Musik bawaan dari koleksi bebas hak cipta Internet Archive.</div>' +
       '</div>';
     } else {
       html += '<div class="info-note">Untuk nyanyi, unggah rekaman referensi (lagu asli atau latihanmu sebelumnya) lewat tombol musik di layar rekam nanti, untuk didengar sebelum kamu mulai.</div>';
@@ -4796,9 +4856,19 @@
     if(musicInput){
       musicInput.addEventListener('change', function(){
         musicFile = musicInput.files[0] || null;
-        document.getElementById('musicFileName').textContent = musicFile ? musicFile.name : 'Pilih file musik dari perangkatmu…';
+        if(musicFile) musicPreset = null; // unggah sendiri menggantikan pilihan bawaan
+        document.getElementById('musicFileName').textContent = musicFile ? musicFile.name : 'Atau unggah musikmu sendiri…';
+        root.querySelectorAll('.chip[data-preset]').forEach(function(c){ c.classList.toggle('active', c.getAttribute('data-preset')==='none' && !musicFile); });
       });
     }
+    root.querySelectorAll('.chip[data-preset]').forEach(function(c){
+      c.addEventListener('click', function(){
+        var p = c.getAttribute('data-preset');
+        musicPreset = (p === 'none') ? null : p;
+        musicFile = null; // pilih musik bawaan menggantikan file unggahan
+        render();
+      });
+    });
     document.getElementById('ssLanjut').addEventListener('click', function(){
       naskahText = document.getElementById('ssNaskah').value;
       stage = 1; render();
@@ -4815,7 +4885,15 @@
   function renderRekam(){
     var html = '<div class="section-topbar"><button id="ssBack" style="background:none;border:none;color:var(--gold-soft);font-size:13px;padding:0 0 6px;cursor:pointer;">&larr; Kembali</button><br><h1>Rekam</h1><span>Ikuti naskahmu, tarik napas di tanda //</span></div>';
     html += '<div class="naskah-box ltr">' + formatNaskah(naskahText) + '</div>';
-    if(musicFile){ html += '<audio id="ssMusicEl" src="' + URL.createObjectURL(musicFile) + '" loop style="display:none;"></audio>'; }
+    var musicUrl = musicFile ? URL.createObjectURL(musicFile) : (musicPreset ? MUSIK_BAWAAN[musicPreset].url : null);
+    var hasMusic = !!musicUrl;
+    if(hasMusic){
+      html += '<audio id="ssMusicEl" src="' + musicUrl + '" loop crossorigin="anonymous" style="display:none;"></audio>';
+      html += '<div class="picker-box" style="padding:10px 14px;margin-bottom:10px;">' +
+        '<label style="display:flex;justify-content:space-between;font-size:11.5px;">Volume musik latar <span id="ssVolLabel">40%</span></label>' +
+        '<input type="range" id="ssVolSlider" min="0" max="100" value="40" style="width:100%;">' +
+      '</div>';
+    }
     html += '<div class="eq-wrap"><canvas id="ssCanvas" style="width:100%;height:44px;"></canvas></div>';
     html += '<div id="ssTimer" style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:10px;">00:00</div>';
     html += '<div class="mic-wrap"><button class="mic-btn" id="ssMicBtn" title="Mulai rekam"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z"></path><path d="M19 11a7 7 0 01-14 0H3a9 9 0 008 8.94V22h2v-2.06A9 9 0 0021 11h-2z"></path></svg></button></div>';
@@ -4829,10 +4907,20 @@
     var timerEl = document.getElementById('ssTimer');
     var canvas = document.getElementById('ssCanvas');
     var musicEl = document.getElementById('ssMusicEl');
+    var volSlider = document.getElementById('ssVolSlider');
+    if(volSlider){
+      volSlider.value = Math.round(musicVolume * 100);
+      document.getElementById('ssVolLabel').textContent = volSlider.value + '%';
+      volSlider.addEventListener('input', function(){
+        musicVolume = parseInt(volSlider.value, 10) / 100;
+        document.getElementById('ssVolLabel').textContent = volSlider.value + '%';
+        window.Rekaman.aturVolumeMusik(musicVolume); // langsung berubah real-time, walau sedang merekam
+      });
+    }
 
     micBtn.addEventListener('click', function(){
       if(!window.Rekaman.sedangMerekam()){
-        window.Rekaman.mulai(canvas, musicEl ? {musicEl: musicEl} : null).then(function(){
+        window.Rekaman.mulai(canvas, musicEl ? {musicEl: musicEl, musicVolume: musicVolume} : null).then(function(){
           micBtn.classList.add('live');
           statusEl.textContent = 'Sedang merekam…';
           elapsedSec = 0; timerEl.textContent = '00:00';
@@ -4859,7 +4947,7 @@
   }
 
   function renderHasil(){
-    var html = '<div class="section-topbar"><h1>Hasil rekaman</h1><span>Dengar ulang, simpan, atau unduh</span></div>';
+    var html = '<div class="section-topbar"><h1>Hasil rekaman</h1><span>Dengar ulang, simpan, atau bagikan</span></div>';
     html += '<div class="picker-box">';
     html += recordedUrl ? '<audio id="ssPreview" controls style="width:100%;margin-bottom:12px;"></audio>' : '<div class="info-note">Rekaman kosong.</div>';
     html += '</div>';
@@ -4868,14 +4956,37 @@
       '<button class="btn-primary" id="ssSimpan">Simpan ke Koleksi</button>' +
     '</div>';
     if(recordedUrl){
-      html += '<div style="padding:0 16px 16px;"><a id="ssDownload" download="studio-suara-' + Date.now() + '.webm" class="btn-secondary" style="display:block;text-decoration:none;">⬇ Unduh file audio</a></div>';
+      html += '<div style="padding:0 16px 10px;display:flex;flex-direction:column;gap:8px;">' +
+        '<a id="ssDownload" download="studio-suara-' + Date.now() + '.webm" class="btn-secondary" style="display:block;text-decoration:none;text-align:center;">⬇ Simpan ke HP</a>' +
+        '<button class="btn-secondary" id="ssBagikan" style="display:none;">📤 Bagikan Karya</button>' +
+      '</div>';
     }
-    html += '<div class="info-note">Belum ada server yang menghubungkan HP ini ke HP orang lain, jadi "Simpan ke Koleksi" itu tersimpan di perangkat ini saja. Untuk membagikannya, unduh file audionya lalu kirim manual (WhatsApp, dll).</div>';
+    html += '<div class="info-note" id="ssShareNote">Belum ada server yang menghubungkan HP ini ke HP orang lain, jadi "Simpan ke Koleksi" itu tersimpan di perangkat ini saja.</div>';
     root.innerHTML = html;
 
     if(recordedUrl){
       var pv = document.getElementById('ssPreview'); pv.src = recordedUrl;
       var dl = document.getElementById('ssDownload'); dl.href = recordedUrl;
+
+      // Tombol Bagikan Karya (Web Share API) -- hanya ditampilkan kalau browser
+      // ini benar2 mendukung berbagi FILE (bukan cuma teks/link). Sebagian besar
+      // Chrome Android mendukung; sebagian browser desktop/iOS lama tidak --
+      // makanya dicek dulu, supaya tak menampilkan tombol yang ujung2nya gagal.
+      var shareBtn = document.getElementById('ssBagikan');
+      var shareFile = recordedBlob ? new File([recordedBlob], 'studio-suara.webm', {type: recordedBlob.type || 'audio/webm'}) : null;
+      if(shareFile && navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] })){
+        shareBtn.style.display = 'block';
+        shareBtn.addEventListener('click', function(){
+          navigator.share({
+            files: [shareFile],
+            title: 'Rekaman Studio Suara',
+            text: naskahText ? naskahText.slice(0, 80) : 'Rekaman dari Teguh Tilawah'
+          }).catch(function(err){
+            if(err && err.name !== 'AbortError') console.warn('Bagikan gagal:', err);
+          });
+        });
+        document.getElementById('ssShareNote').textContent = 'Simpan ke HP untuk menyimpan filenya, atau Bagikan Karya untuk langsung kirim ke WhatsApp/medsos lain.';
+      }
     }
     document.getElementById('ssUlangi').addEventListener('click', function(){ stage = 1; render(); });
     document.getElementById('ssSimpan').addEventListener('click', function(){
@@ -5240,6 +5351,57 @@
   }
 
   window.MarketplaceApp = { init: init };
+})();
+</script>
+
+<!-- ============ KOMUNITAS MODULE ============ -->
+<script>
+(function(){
+  "use strict";
+
+  // Isi dengan link grup Anda sendiri. Telegram tidak punya widget resmi untuk
+  // menampilkan ISI obrolan langsung di web orang lain -- jadi ini kartu ajakan
+  // bergabung yang rapi, bukan jendela chat palsu. Discord PUNYA "Server Widget"
+  // resmi (iframe) yang bisa ditampilkan kalau diaktifkan di Server Settings ->
+  // Widget -> aktifkan, salin Server ID -- isi DISCORD_SERVER_ID di bawah kalau
+  // mau pakai itu (opsional, cuma tampil daftar anggota, bukan isi chat).
+  var TELEGRAM_GROUP_LINK = ''; // <-- contoh: https://t.me/teguhtilawah
+  var DISCORD_SERVER_ID = ''; // <-- opsional, kosongkan kalau tidak pakai Discord
+
+  var inited = false;
+
+  function init(){
+    if(inited) return;
+    inited = true;
+    var root = document.getElementById('tab-komunitas');
+    var html = '<div class="section-topbar"><h1>Komunitas</h1><span>Saling berbagi ilmu, motivasi, dan silaturahmi</span></div>';
+
+    if(!TELEGRAM_GROUP_LINK && !DISCORD_SERVER_ID){
+      html += '<div class="info-note" style="margin:0 16px;">Grup komunitas belum diatur. Buat grup Telegram (atau server Discord) Anda sendiri dulu, lalu kirim link-nya untuk ditanam di sini.</div>';
+      root.innerHTML = html;
+      return;
+    }
+
+    if(TELEGRAM_GROUP_LINK){
+      html += '<div class="komunitas-card">' +
+        '<div class="kc-icon">💬</div>' +
+        '<div class="kc-title">Grup Komunitas Telegram</div>' +
+        '<div class="kc-sub">Berbagi ilmu, motivasi, hingga hasil panen &amp; produk lokal Anda dengan sesama pengguna dari berbagai daerah</div>' +
+        '<a href="' + TELEGRAM_GROUP_LINK + '" target="_blank" rel="noopener" class="kc-btn">Gabung Grup →</a>' +
+      '</div>';
+    }
+
+    if(DISCORD_SERVER_ID){
+      html += '<div class="komunitas-card" style="padding-top:6px;">' +
+        '<div class="kc-title" style="margin-bottom:10px;">Server Discord</div>' +
+        '<iframe src="https://discord.com/widget?id=' + DISCORD_SERVER_ID + '&theme=dark" width="100%" height="360" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts" style="border-radius:12px;"></iframe>' +
+      '</div>';
+    }
+
+    root.innerHTML = html;
+  }
+
+  window.KomunitasApp = { init: init };
 })();
 </script>
 </body>
