@@ -27,34 +27,34 @@
 
 const SHORT_LINKS = {
   shalat: [
-    'https://s.shopee.co.id/4qFmI1dq4Z',
-    'https://s.shopee.co.id/1Lfu7m8RXv',
-    'https://s.shopee.co.id/qjdWta8xD',
-    'https://s.shopee.co.id/5fotHp3TBq',
-    'https://s.shopee.co.id/2gBHiMDofT',
+    'https://s.shopee.co.id/AUuEIy6ZNK',
+    'https://s.shopee.co.id/AKao6f7CiJ',
+    'https://s.shopee.co.id/9V1h78ANPA',
+    'https://s.shopee.co.id/9KiGupB0k9',
+    'https://s.shopee.co.id/9peXVk96jG',
   ],
   quran: [
-    'https://s.shopee.co.id/5VVT47PQiK',
-    'https://s.shopee.co.id/20vavWwUfK',
-    'https://s.shopee.co.id/4LJVhrMTyC',
-    'https://s.shopee.co.id/50ZCV8J0Uy',
-    'https://s.shopee.co.id/5q8JUiwYEn',
+    'https://s.shopee.co.id/6AlF98jL6B',
+    'https://s.shopee.co.id/5foyYDlF76',
+    'https://s.shopee.co.id/5q8OkWkbm9',
+    'https://s.shopee.co.id/5LC89bmVn4',
+    'https://s.shopee.co.id/5VVYLulsS7',
   ],
   koko: [
-    'https://s.shopee.co.id/7Kx7HiBzpm',
-    'https://s.shopee.co.id/80Co4yZ35M',
-    'https://s.shopee.co.id/8plv4YhWIS',
-    'https://s.shopee.co.id/6Al9tiTIje',
-    'https://s.shopee.co.id/7Adh4vx3Mh',
-    'https://s.shopee.co.id/1AWXnkQ8k',
+    'https://s.shopee.co.id/5VVYM6GMAa',
+    'https://s.shopee.co.id/5LC89nGzVZ',
+    'https://s.shopee.co.id/5q8OkiF5Ug',
+    'https://s.shopee.co.id/5foyYPFipf',
+    'https://s.shopee.co.id/6AlF9KDoom',
+    'https://s.shopee.co.id/2BF6O7lgV0',
   ],
   gamis: [
-    'https://s.shopee.co.id/W6n8QXulg',
-    'https://s.shopee.co.id/LnMwCiu4M',
-    'https://s.shopee.co.id/1VzKKRC7Zl',
-    'https://s.shopee.co.id/4LJVi1RW6P',
-    'https://s.shopee.co.id/9V1brY7B3X',
-    'https://s.shopee.co.id/9zxsSW8KB1',
+    'https://s.shopee.co.id/1VzPaEEGL3',
+    'https://s.shopee.co.id/1gIpmXDd06',
+    'https://s.shopee.co.id/1qcFyqCzf9',
+    'https://s.shopee.co.id/20vgB9CMKC',
+    'https://s.shopee.co.id/2BF6NSBizF',
+    'https://s.shopee.co.id/5foyY1YHjPper',
   ],
 };
 
@@ -85,6 +85,9 @@ async function fetchOneProduct(link, token, actorId) {
   };
 }
 
+// Perpanjang batas waktu fungsi ini ke 60 detik (maksimal yang diizinkan
+// paket gratis Vercel) -- jaga-jaga meski sudah diproses paralel, supaya
+// tidak terpotong di tengah jalan kalau Apify sedang lambat merespons.
 module.exports = async (req, res) => {
   const token = process.env.APIFY_TOKEN;
   const actorId = process.env.APIFY_ACTOR_ID;
@@ -96,21 +99,22 @@ module.exports = async (req, res) => {
   const result = {};
   const errors = [];
 
-  for (const category of Object.keys(SHORT_LINKS)) {
-    result[category] = [];
-    for (const link of SHORT_LINKS[category]) {
-      try {
-        const product = await fetchOneProduct(link, token, actorId);
-        result[category].push(product);
-      } catch (err) {
-        errors.push({ category, link, error: String(err.message || err) });
-        // Tetap masukkan entri kosong dengan link asli supaya urutan/jumlah
-        // produk di kategori itu tidak berubah -- Anda bisa isi manual nanti
-        // khusus untuk yang gagal ini saja.
-        result[category].push({ title: null, price: null, img: null, link, failed: true });
-      }
-    }
-  }
+  // Diproses PARALEL (bukan satu-satu berurutan) supaya total waktu tak
+  // melebihi batas 60 detik yang sudah diperpanjang di bawah -- 22 link
+  // sekaligus jauh lebih cepat daripada menunggu satu-satu selesai dulu.
+  await Promise.all(
+    Object.keys(SHORT_LINKS).map(async (category) => {
+      const settled = await Promise.allSettled(
+        SHORT_LINKS[category].map((link) => fetchOneProduct(link, token, actorId))
+      );
+      result[category] = settled.map((r, i) => {
+        const link = SHORT_LINKS[category][i];
+        if (r.status === 'fulfilled') return r.value;
+        errors.push({ category, link, error: String(r.reason && r.reason.message || r.reason) });
+        return { title: null, price: null, img: null, link, failed: true };
+      });
+    })
+  );
 
   res.status(200).json({
     note: 'Salin bagian "result" di bawah, kirim ke Claude untuk ditanam ke LOCAL_PRODUCTS di quran-app.html. Cek juga "errors" untuk link yang gagal diambil datanya.',
@@ -118,3 +122,7 @@ module.exports = async (req, res) => {
     errors,
   });
 };
+
+// Batas waktu 60 detik (maksimal paket gratis Vercel) -- dipasang SETELAH
+// fungsinya didefinisikan supaya tidak tertimpa/hilang.
+module.exports.config = { maxDuration: 60 };
