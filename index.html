@@ -59,6 +59,33 @@
   }
   #app{max-width:var(--app-max-width);margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
 
+  /* ============ COVER PEMBUKA (WELCOME SCREEN) ============ */
+  #coverScreen{
+    position:fixed;inset:0;z-index:999;
+    background:radial-gradient(ellipse at 50% 30%, #0f4438 0%, #08211b 75%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transition:opacity .6s ease;overflow:hidden;cursor:pointer;
+  }
+  #coverScreen.fade-out{opacity:0;pointer-events:none;}
+  #coverStars{position:absolute;inset:0;}
+  #coverStars span{
+    position:absolute;border-radius:50%;background:#F6E27A;
+    animation:coverTwinkle 2.4s ease-in-out infinite;
+  }
+  @keyframes coverTwinkle{ 0%,100%{opacity:.15;} 50%{opacity:.9;} }
+  .cover-inner{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;}
+  .cover-logo{animation:coverGlow 2.6s ease-in-out infinite;filter:drop-shadow(0 0 14px rgba(228,200,120,.55));}
+  @keyframes coverGlow{ 0%,100%{filter:drop-shadow(0 0 10px rgba(228,200,120,.4));} 50%{filter:drop-shadow(0 0 22px rgba(228,200,120,.75));} }
+  .cover-title{
+    margin-top:18px;font-family:'Amiri Quran',serif;font-size:26px;font-weight:600;
+    color:#F6E27A;letter-spacing:.5px;text-shadow:0 0 16px rgba(246,226,122,.5);
+  }
+  .cover-sub{margin-top:8px;font-size:12px;color:#B9CFC5;letter-spacing:.3px;}
+  .cover-footer{
+    position:absolute;bottom:34px;left:0;right:0;text-align:center;
+    font-size:11px;letter-spacing:2px;color:#CBA135;opacity:.75;text-transform:uppercase;
+  }
+
   /* ---------- Ornamental header ---------- */
   .topbar{
     position:sticky;top:0;z-index:20;
@@ -705,6 +732,56 @@
 -->
 </head>
 <body>
+
+<!-- ============ COVER PEMBUKA (WELCOME SCREEN) ============ -->
+<div id="coverScreen">
+  <div id="coverStars"></div>
+  <div class="cover-inner">
+    <div class="cover-logo">
+      <svg viewBox="0 0 100 100" width="88" height="88">
+        <circle cx="50" cy="50" r="46" fill="none" stroke="url(#coverGoldRing)" stroke-width="2.5"/>
+        <path d="M30 32 Q30 28 34 28 L 58 28 Q 78 28 78 50 Q 78 72 58 72 L 34 72 Q30 72 30 68 Z M38 36 L38 64 L 56 64 Q 70 64 70 50 Q 70 36 56 36 Z" fill="url(#coverGoldFill)" opacity=".92"/>
+        <defs>
+          <linearGradient id="coverGoldRing" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#F6E27A"/><stop offset="100%" stop-color="#CBA135"/>
+          </linearGradient>
+          <linearGradient id="coverGoldFill" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#E4C878"/><stop offset="100%" stop-color="#CBA135"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <div class="cover-title">Teguh Tilawah</div>
+    <div class="cover-sub">Al-Qur'an &middot; Hafalan &middot; Tafsir &middot; Ceramah</div>
+  </div>
+  <div class="cover-footer">By Teguh Digital</div>
+</div>
+<script>
+  (function(){
+    var cover = document.getElementById('coverScreen');
+    var starsEl = document.getElementById('coverStars');
+    // Bintang emas kecil, posisi & waktu kedip acak -- dibuat murni CSS (bukan
+    // animasi JS/canvas) supaya ringan sekali di baterai/CPU, sesuai dengan
+    // prinsip aplikasi ini di tempat lain.
+    var starsHtml = '';
+    for(var i=0;i<28;i++){
+      var top = Math.random()*100, left = Math.random()*100;
+      var delay = (Math.random()*3).toFixed(2);
+      var size = (Math.random()*2+1).toFixed(1);
+      starsHtml += '<span style="top:'+top+'%;left:'+left+'%;width:'+size+'px;height:'+size+'px;animation-delay:'+delay+'s;"></span>';
+    }
+    starsEl.innerHTML = starsHtml;
+
+    function dismiss(){
+      if(!cover || cover.classList.contains('fade-out')) return;
+      cover.classList.add('fade-out');
+      setTimeout(function(){ if(cover && cover.parentNode) cover.parentNode.removeChild(cover); }, 650);
+    }
+    cover.addEventListener('click', dismiss);
+    setTimeout(dismiss, 2000);
+  })();
+</script>
+
 <div id="app">
 <div id="tabContent">
 
